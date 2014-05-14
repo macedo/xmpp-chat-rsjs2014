@@ -1,0 +1,82 @@
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RSJS Chat</title>
+    <link href="./public/stylesheets/application.css" rel="stylesheet">
+  </head>
+  <body>
+    <nav class="navbar navbar-default" role="navigation">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">RSJS Chat</a>
+        </div>
+      </div>
+    </nav>
+    <div id="chat-app" class="container">
+      <div>
+        <h1>RSJS Chat</h1>
+        <p class="lead"></p>
+      </div>
+      <div class="row">
+        <div id="chat" class="col-sm-8">
+        </div>
+        <div id="buddies" class="col-sm-3 col-sm-offset-1">
+        </div>
+      </div>
+    </div>
+
+    <script type="text/template" id="buddies-tpl">
+      <div class="sidebar-module well">
+        <h4>Contacts <span class="buddy-counts badge">0</span></h4>
+        <ul class="buddy-list list-unstyled"></ul>
+      </div>
+    </script>
+
+    <script type="text/template" id="auth-tpl">
+        <div class="form-group">
+          <label for="jid" class="col-sm-2 control-label">JID</label>
+          <div class="col-sm-4">
+            <input type="email" class="form-control" id="jid" placeholder="JID">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="passwd" class="col-sm-2 control-label">Password</label>
+          <div class="col-sm-4">
+            <input type="password" class="form-control" id="passwd" placeholder="Password">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="room" class="col-sm-2 control-label">Chat Room</label>
+          <div class="col-sm-4">
+            <select class="form-control" id="chat-rooms" disabled>
+              <option value="lobby">Lobby</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="nickname" class="col-sm-2 control-label">Nickname</label>
+          <div class="col-sm-4">
+            <input type="text" class="form-control" id="nickname" placeholder="Pick your nickname">
+          </div>
+        </div>
+        <div class="col-sm-offset-2 col-sm-10">
+          <button type="submit" id="join" class="btn btn-default">Join</button>
+        </div>
+    </script>
+
+    <script type="text/template" id="chat-tpl">
+      <textarea></textarea>
+    </script>
+
+    <script src="./public/javascripts/application.js"></script>
+  </body>
+</html>
