@@ -17,7 +17,7 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="#">RSJS Chat</a>
+          <a class="navbar-brand" href="/">RSJS Chat</a>
         </div>
       </div>
     </nav>
@@ -36,12 +36,17 @@
 
     <script type="text/template" id="buddies-tpl">
       <div class="sidebar-module well">
-        <h4>Contacts <span class="buddy-counts badge">0</span></h4>
-        <ul class="buddy-list list-unstyled"></ul>
+        <h4>Participants <span class="buddy-counts badge"><%= participants.length %></span></h4>
+        <ul class="buddy-list list-unstyled">
+          <% _.each(participants, function(p) { %>
+            <li><%= p.nickname %></li>
+          <% }); %>
+        </ul>
       </div>
     </script>
 
     <script type="text/template" id="auth-tpl">
+      <div class="auth login">
         <div class="form-group">
           <label for="jid" class="col-sm-2 control-label">JID</label>
           <div class="col-sm-4">
@@ -54,12 +59,21 @@
             <input type="password" class="form-control" id="passwd" placeholder="Password">
           </div>
         </div>
+        <div class="col-sm-offset-2 col-sm-10">
+          <button type="submit" id="login" class="btn btn-default">Login</button>
+        </div>
+      </div>
+      <div class="auth join hidden">
         <div class="form-group">
           <label for="room" class="col-sm-2 control-label">Chat Room</label>
           <div class="col-sm-4">
-            <select class="form-control" id="chat-rooms" disabled>
-              <option value="lobby">Lobby</option>
+            <p><strong>Joins an existent room</strong></p>
+            <select class="form-control" id="chat-rooms">
+              <option value="">Select</option>
             </select>
+            <br>
+            <p><strong>| or create a new one</strong></p>
+            <input type="text" class="form-control" id="new-chat-room" />
           </div>
         </div>
         <div class="form-group">
@@ -71,10 +85,13 @@
         <div class="col-sm-offset-2 col-sm-10">
           <button type="submit" id="join" class="btn btn-default">Join</button>
         </div>
+      </div>
     </script>
 
     <script type="text/template" id="chat-tpl">
-      <textarea></textarea>
+      <h3><%= room %></h3>
+      <div id="chat-area"></div>
+      <input type="text" id="chat-input" class="col-sm-10"/>
     </script>
 
     <script src="./public/javascripts/application.js"></script>

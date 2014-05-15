@@ -19011,14 +19011,16 @@ define("strophejs", (function (global) {
 }(this)));
 
 define(
-  'models/chat_manager',[
+  'models/chat',[
     "backbone",
+    "underscore",
     "strophejs"
   ],
 
-  function(Backbone, Strophe) {
-    var ChatManager = Backbone.Model.extend({
+  function(Backbone, _, Strophe) {
+    var Chat = Backbone.Model.extend({
       defaults: {
+        body: null,
         connection: null,
         connectionStatus: null,
         connected: false,
@@ -19026,15 +19028,43 @@ define(
           NS_MUC: "http://jabber.org/protocol/muc"
         },
         joined: null,
-        participants: null,
+        participants: [],
         nickname: null,
+        rooms: [],
         room: null
+      },
+
+      initialize: function() {
+        this.on("change:connected", this.getRooms, this);
+      },
+
+      getRooms: function() {
+        var iq = new Strophe.Builder("iq", { to: "conference.taskie.org", type: "get", id: "rooms-info" });
+        iq.c("query", { xmlns: "http://jabber.org/protocol/disco#items" });
+
+        this.connection.send(iq);
+      },
+
+      joinChat: function(room, nickname) {
+        this.set({
+          room: room, nickname: nickname });
+
+        this.joined = false;
+
+        var presence = new Strophe.Builder("presence",
+          { to: this.get("room") + "/" + this.get("nickname") });
+
+        presence.c("x", { xmlns: this.get("extensions").NS_MUC });
+        this.connection.send(presence);
       },
 
       connect: function(jid, passwd) {
         var _this = this;
 
-        this.connection = new Strophe.Connection("http://bosh.metajack.im:5280/xmpp-httpbind");
+        this.connection = new Strophe.Connection("http://taskie.org:5280/http-bind");
+        this.connection.addHandler(_.bind(this.onPresence, this), null, "presence");
+        this.connection.addHandler(_.bind(this.onRoomsInfo, this), null, "iq", "result", "rooms-info");
+        this.connection.addHandler(_.bind(this.onPublicMessage, this), null, "message", "groupchat");
         this.connection.connect(jid, passwd, function(status) {
           switch(status) {
             case Strophe.Status.CONNECTED:
@@ -19065,9 +19095,92 @@ define(
               break;
           }
         });
+      },
+
+      onPresence: function(presence) {
+        var $presence = $(presence)
+          , presenceType = $presence.attr("type");
+
+        var from = $presence.attr("from")
+          , room = Strophe.getBareJidFromJid(from);
+
+        if (room === this.get("room")) {
+          var nick = Strophe.getResourceFromJid(from);
+
+          if (presenceType === "error" && !this.get("joined")) {
+            this.connection.disconnect();
+          } else if (presenceType !== "unavailable") {
+            this.set({
+              "participants": this.get("participants").concat({ nickname: nick }) });
+          }
+        }
+
+        if (presenceType !== "error" && !this.get("joined")) {
+          if ($presence.find("status[code='110']").length > 0) {
+            if ($presence.find("status[code='210']").length > 0) {
+              this.set("nickname", Strophe.getResourceFromJid(from));
+            }
+
+            this.set("joined", true);
+          }
+        }
+
+        return true;
+      },
+
+      onPublicMessage: function(message) {
+        var $message = $(message);
+
+        var from = $message.attr("from")
+          , room = Strophe.getBareJidFromJid(from)
+          , nick = Strophe.getResourceFromJid(from);
+
+        if (room === this.get("room")) {
+          var notice = !nick;
+
+          var nick_class = "nick";
+          if (nick === this.get("nickname")) {
+            nick_class += "-self";
+          }
+
+          var body = $message.children("body").text();
+
+          if (!notice) {
+            this.set("body", "<div class=\"message\">" + "<span class=\"" + nick_class + "\">" + nick + ": </span><span class=\"body\">" + body + "</span></div>");
+          } else {
+            this.set("body", "<div class=\"notice\">*** " + body + "</div>");
+          }
+        }
+
+        return true;
+      },
+
+      onRoomsInfo: function(iq) {
+        var $IQ = $(iq);
+
+        var items = $IQ.find("item")
+          , rooms;
+
+        rooms = _.map(items, function(item) {
+          var $item = $(item);
+
+          return { jid: $item.attr("jid"), name: $item.attr("name") };
+        });
+
+        this.set("rooms", rooms);
+        return true;
+      },
+
+      sendMessage: function(msg) {
+        var message = new Strophe.Builder("message",
+            { to: this.get("room"), type: "groupchat"});
+
+        message.c("body").t(msg);
+        this.connection.send(message);
       }
     });
-    return ChatManager;
+
+    return Chat;
   }
 );
 
@@ -19084,21 +19197,44 @@ define(
       className: "form-horizontal",
 
       events: {
+        "click #login": "onLogin",
         "click #join": "onJoin"
       },
 
-      onJoin: function() {
-        this.model.set({
-          room:     $("#room").val(),
-          nickname: $("#nickname").val()
-        });
+      initialize: function() {
+        this.listenTo(this.model, "change:connected", this.onConnected);
+        this.listenTo(this.model, "change:rooms", this.renderRooms);
+      },
 
+      onConnected: function() {
+        this.$el.find(".auth").toggleClass("hidden");
+      },
+
+      onJoin: function() {
+        var room;
+
+        if ($("#new-chat-room").val() === "") {
+          room = $("#chat-rooms option:selected").val();
+        } else {
+          room = $("#new-chat-room").val() + "@conference.taskie.org";
+        }
+
+        this.model.joinChat(room, $("#nickname").val());
+      },
+
+      onLogin: function() {
         this.model.connect($("#jid").val(), $("#passwd").val());
       },
 
       render: function() {
         this.$el.html(this.template());
         return this;
+      },
+
+      renderRooms: function() {
+        _.each(this.model.get("rooms"), function(room) {
+          $("#chat-rooms").append("<option value=\"" + room.jid + "\">" + room.name + "</option>");
+        });
       },
 
       destroy: function() {
@@ -19122,13 +19258,48 @@ define(
     var Chat = Backbone.View.extend({
       template: _.template($("#chat-tpl").html()),
 
+      events: {
+        "keypress #chat-input": "sendMessage"
+      },
+
       initialize: function() {
-        this.listenTo(this.model, "change:connected", this.render);
+        this.listenTo(this.model, "change:joined", this.render);
+        this.listenTo(this.model, "change:body", this.addMessage);
+      },
+
+      addMessage: function() {
+        var chatArea = this.$el.find("#chat-area").get(0)
+          , atBottom = chatArea.scrollTop >= chatArea.scrollHeight - chatArea.clientHeight;
+
+        $(chatArea).append(this.model.get("body"));
+
+        this.model.set("body", null);
+
+        if (atBottom) {
+          chatArea.scrollTop = chatArea.scrollHeight;
+        }
+      },
+
+      notify: function() {
+        var chatArea = this.$el.find("#chat-area");
+
+        if (this.model.get("joined")) {
+          chatArea.append("<div class=\"notice\">***Room Joined.</div>");
+        }
       },
 
       render: function() {
-        this.$el.html(this.template());
+        this.$el.html(this.template(this.model.toJSON()));
+        this.notify();
+
         return this;
+      },
+
+      sendMessage: function(e) {
+        if (e.which === 13) {
+          e.preventDefault();
+          this.model.sendMessage($(e.target).val());
+        }
       }
     });
 
@@ -19147,13 +19318,14 @@ define(
       template: _.template($("#buddies-tpl").html()),
 
       initialize: function() {
-        this.listenTo(this.model, "change:connected", this.render);
+        this.listenTo(this.model, "change:joined", this.render);
+        this.listenTo(this.model, "change:participants", this.render);
       },
 
       render: function() {
-        this.$el.html(this.template());
+        this.$el.html(this.template(this.model.toJSON()));
         return this;
-      }
+      },
     });
 
     return ContactList;
@@ -19163,36 +19335,36 @@ define(
 define(
   'views/rsjs_web_chat',[
     "backbone",
-    "models/chat_manager",
+    "models/chat",
     "views/auth",
     "views/chat",
     "views/contact_list"
   ],
 
-  function(Backbone, ChatManager, AuthView, ChatView, ContactListView) {
+  function(Backbone, Chat, AuthView, ChatView, ContactListView) {
     var RSJSWebChat = Backbone.View.extend({
 
       initialize: function() {
-        this.chatManager = new ChatManager();
+        this.chat = new Chat();
 
-        this.authView = new AuthView({ model: this.chatManager });
-        this.chatView = new ChatView({ el: "#chat", model: this.chatManager });
-        this.contactList = new ContactListView({ el: "#buddies", model: this.chatManager });
+        this.authView = new AuthView({ model: this.chat });
+        this.chatView = new ChatView({ el: "#chat", model: this.chat });
+        this.contactList = new ContactListView({ el: "#buddies", model: this.chat });
 
-        this.listenTo(this.chatManager, "change:connected", this.onConnected);
-        this.listenTo(this.chatManager, "change:connectionStatus", this.onUpdateConnectionStatus);
+        this.listenTo(this.chat, "change:joined", this.onJoined);
+        this.listenTo(this.chat, "change:connectionStatus", this.onUpdateConnectionStatus);
       },
 
       init: function() {
         this.render();
       },
 
-      onConnected: function () {
+      onJoined: function () {
         this.authView.destroy();
       },
 
       onUpdateConnectionStatus: function() {
-        $(".lead").html(this.chatManager.get("connectionStatus"));
+        $(".lead").html(this.chat.get("connectionStatus"));
       },
 
       render: function() {

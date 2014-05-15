@@ -1,36 +1,36 @@
 define(
   [
     "backbone",
-    "models/chat_manager",
+    "models/chat",
     "views/auth",
     "views/chat",
     "views/contact_list"
   ],
 
-  function(Backbone, ChatManager, AuthView, ChatView, ContactListView) {
+  function(Backbone, Chat, AuthView, ChatView, ContactListView) {
     var RSJSWebChat = Backbone.View.extend({
 
       initialize: function() {
-        this.chatManager = new ChatManager();
+        this.chat = new Chat();
 
-        this.authView = new AuthView({ model: this.chatManager });
-        this.chatView = new ChatView({ el: "#chat", model: this.chatManager });
-        this.contactList = new ContactListView({ el: "#buddies", model: this.chatManager });
+        this.authView = new AuthView({ model: this.chat });
+        this.chatView = new ChatView({ el: "#chat", model: this.chat });
+        this.contactList = new ContactListView({ el: "#buddies", model: this.chat });
 
-        this.listenTo(this.chatManager, "change:connected", this.onConnected);
-        this.listenTo(this.chatManager, "change:connectionStatus", this.onUpdateConnectionStatus);
+        this.listenTo(this.chat, "change:joined", this.onJoined);
+        this.listenTo(this.chat, "change:connectionStatus", this.onUpdateConnectionStatus);
       },
 
       init: function() {
         this.render();
       },
 
-      onConnected: function () {
+      onJoined: function () {
         this.authView.destroy();
       },
 
       onUpdateConnectionStatus: function() {
-        $(".lead").html(this.chatManager.get("connectionStatus"));
+        $(".lead").html(this.chat.get("connectionStatus"));
       },
 
       render: function() {
