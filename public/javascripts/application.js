@@ -19042,6 +19042,8 @@ define(
         var iq = new Strophe.Builder("iq", { to: "conference.taskie.org", type: "get", id: "rooms-info" });
         iq.c("query", { xmlns: "http://jabber.org/protocol/disco#items" });
 
+        console.log("[iq] get rooms", iq.tree());
+
         this.connection.send(iq);
       },
 
@@ -19055,6 +19057,9 @@ define(
           { to: this.get("room") + "/" + this.get("nickname") });
 
         presence.c("x", { xmlns: this.get("extensions").NS_MUC });
+
+        console.log("[presence] join chat", presence.tree());
+
         this.connection.send(presence);
       },
 
@@ -19098,6 +19103,9 @@ define(
       },
 
       onPresence: function(presence) {
+
+        console.log("[presence] onPresence", presence);
+
         var $presence = $(presence)
           , presenceType = $presence.attr("type");
 
