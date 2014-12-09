@@ -1,0 +1,14 @@
+---
+- name: Install extra packages
+  apt: "pkg={{item}} state=latest force=yes update_cache=yes"
+  with_items:
+    - build-essential
+    - ntp
+  tags: setup
+
+- name: Configure NTP (Network Time Protocol)
+  template: >
+    src=timezone.j2
+    dest=/etc/timezone
+  notify: update tzdata
+  tags: setup

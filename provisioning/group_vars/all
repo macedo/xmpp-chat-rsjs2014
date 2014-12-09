@@ -1,0 +1,5 @@
+---
+# Setup: set according to your application needs
+
+# config timezone
+time_zone: 'America/Brasilia'

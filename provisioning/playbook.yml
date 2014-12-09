@@ -1,0 +1,9 @@
+---
+- name: XMPP Server
+  hosts: all
+  sudo: yes
+  user: ubuntu
+  gather_facts: False
+
+  roles:
+    - common
